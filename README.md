@@ -1,3 +1,3 @@
-# pm1_sdk_2
+# lidar_faselase
 
-精简化的 pm1 驱动。封装到进程，通过多进程调用。
+Faselase D10 雷达驱动。
