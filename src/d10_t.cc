@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <deque>
+#include <mutex>
 #include <utility>
 
 namespace faselase {
@@ -88,10 +89,10 @@ namespace faselase {
 
         static_assert(sizeof(frame_t) == 4);
 
+        std::mutex _mutex;
         std::deque<point_t> _queue0{{1, 0}}, _queue1;
 
     public:
-        implement_t() {}
         size_t receive(void *buffer, size_t size) {
             auto ptr = reinterpret_cast<uint8_t *>(buffer);
             auto end = ptr + size;
@@ -105,7 +106,9 @@ namespace faselase {
                     if (point.len) {
                         if (point.dir > 5760) point.dir -= 5760;
 
-                        if (_queue0.empty() || point.dir > _queue0.back().dir)
+                        std::lock_guard<decltype(_mutex)> lock(_mutex);
+
+                        if (point.dir > _queue0.back().dir)
                             _queue0.push_back(point);
                         else {
                             _queue1 = std::move(_queue0);

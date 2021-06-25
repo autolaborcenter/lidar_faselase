@@ -13,8 +13,6 @@ scan_lidars(std::mutex &mutex, std::condition_variable &signal) {
     for (const auto &name : list_ports()) {
         auto fd = open_serial(name);
         if (fd < 0) continue;
-        std::cout << name << " is opened." << std::endl;
-
         auto map_iterator = lidars.try_emplace(name).first;
         std::thread([&, name, map_iterator, fd] {
             auto &lidar = map_iterator->second;
@@ -31,7 +29,6 @@ scan_lidars(std::mutex &mutex, std::condition_variable &signal) {
                 lidars.erase(map_iterator);
             }
             signal.notify_all();
-            std::cout << name << " is closed." << std::endl;
         }).detach();
     }
 
