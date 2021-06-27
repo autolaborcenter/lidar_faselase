@@ -27,10 +27,30 @@ namespace faselase {
         };
         static_assert(sizeof(frame_value_t) == 2);
 
-        struct point_t {
-            uint16_t len, dir;
+        class point_t {
+            struct len_t {
+                uint16_t value : 11, : 5;
+            };
+            struct dir_t {
+                uint16_t : 3, value : 13;
+            };
+
+            uint8_t bytes[3];
+
+        public:
+            constexpr explicit point_t(uint16_t len = 0, uint16_t dir = 0)
+                : bytes{
+                      static_cast<uint8_t>(len),
+                      static_cast<uint8_t>((dir << 3) | (len >> 8)),
+                      static_cast<uint8_t>(dir >> 5),
+                  } {}
+
+            void len(uint16_t value) { reinterpret_cast<len_t *>(bytes)->value = value; }
+            uint16_t len() const { return reinterpret_cast<const len_t *>(bytes)->value; }
+
+            void dir(uint16_t value) { reinterpret_cast<dir_t *>(bytes + 1)->value = value; }
+            uint16_t dir() const { return reinterpret_cast<const dir_t *>(bytes + 1)->value; }
         };
-        static_assert(sizeof(point_t) == 4);
 
         union frame_t {
             constexpr static uint32_t FRAME_BITS = 0x80'80'80'80;
@@ -80,17 +100,16 @@ namespace faselase {
             }
 
             point_t data() const {
-                return {
+                return point_t(
                     frame_value_t{.len{.l0 = l0, .l1 = l1, .l2 = l2}}.value,
-                    frame_value_t{.dir{.d0 = d0, .d1 = d1}}.value,
-                };
+                    frame_value_t{.dir{.d0 = d0, .d1 = d1}}.value);
             }
         };
 
         static_assert(sizeof(frame_t) == 4);
 
         std::mutex _mutex;
-        std::deque<point_t> _queue0{{1, 0}}, _queue1;
+        std::deque<point_t> _queue0{point_t(1, 0)}, _queue1;
 
     public:
         size_t receive(void *buffer, size_t size) {
@@ -103,19 +122,19 @@ namespace faselase {
                     ++ptr;
                 else {
                     auto point = frame->data();
-                    if (point.len) {
-                        if (point.dir > 5760) point.dir -= 5760;
+                    if (point.len()) {
+                        if (point.dir() > 5760) point.dir(point.dir() - 5760);
 
                         std::lock_guard<decltype(_mutex)> lock(_mutex);
 
-                        if (point.dir > _queue0.back().dir)
+                        if (point.dir() > _queue0.back().dir())
                             _queue0.push_back(point);
                         else {
                             _queue1 = std::move(_queue0);
                             _queue0 = std::deque<point_t>{point};
                         }
 
-                        while (!_queue1.empty() && _queue1.front().dir <= point.dir)
+                        while (!_queue1.empty() && _queue1.front().dir() <= point.dir())
                             _queue1.pop_front();
                     }
                     ptr += sizeof(frame_t);
