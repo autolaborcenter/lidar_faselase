@@ -15,6 +15,7 @@ namespace faselase {
         ~d10_t();
 
         size_t receive(void *, size_t);
+        size_t snapshot(void *, size_t) const;
     };
 }// namespace faselase
 
