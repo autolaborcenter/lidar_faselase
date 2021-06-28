@@ -125,9 +125,7 @@ namespace faselase {
                     ++ptr;
                 else {
                     auto point = frame->data();
-                    if (point.len()) {
-                        if (point.dir() > 5760) point.dir(point.dir() - 5760);
-
+                    if (point.len() && point.dir() < 5760) {
                         std::lock_guard<decltype(_mutex)> lock(_mutex);
 
                         if (point.dir() > _queue0.back().dir())
