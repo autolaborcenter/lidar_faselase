@@ -30,6 +30,8 @@ namespace faselase {
         void dir(uint16_t value) { reinterpret_cast<dir_t *>(bytes + 1)->value = value; }
         uint16_t dir() const { return reinterpret_cast<const dir_t *>(bytes + 1)->value; }
     };
+
+    static_assert(sizeof(point_t) == 3, "this is a zipped data.");
 }// namespace faselase
 
 #endif// POINT_T_HH

@@ -18,6 +18,9 @@ namespace faselase {
 
         size_t receive(void *, size_t);
         size_t snapshot(void *, size_t) const;
+        inline size_t snapshot(point_t *buffer, size_t size) const {
+            return snapshot(reinterpret_cast<void *>(buffer), size * sizeof(point_t)) / sizeof(point_t);
+        }
     };
 }// namespace faselase
 

@@ -8,17 +8,31 @@
 #include <sstream>
 #include <thread>
 
+#include <ranges>
+
 int main() {
     using namespace std::chrono_literals;
 
     std::mutex mutex;
     std::condition_variable signal;
     std::atomic<sockaddr_in> remote({.sin_family = AF_INET});
-
     // 打开雷达
     auto ports = scan_lidars(mutex, signal);
-    std::this_thread::sleep_for(150ms);// 保证得到一整帧
-
+    {
+        auto size = ports.size();
+        if (size == 0 || size > 2) return 1;
+    }
+    {// 确定前后
+        faselase::point_t buffer[500];
+        for (auto i : std::views::iota(1, 3)) {
+            std::this_thread::sleep_for(120ms);// 保证更新一整帧
+            std::unique_lock<decltype(mutex)> lock(mutex);
+            if (ports.empty()) return 1;
+            for (const auto &[port, lidar] : ports) {
+                auto n = lidar.snapshot(buffer, sizeof(buffer));
+            }
+        }
+    }
     // 解析控制指令
     std::thread([&ports, &remote] {
         std::string text;
@@ -41,16 +55,15 @@ int main() {
             }
         }
     }).detach();
-
     // 发送 udp
     using clock = std::chrono::steady_clock;
     auto udp = socket(AF_INET, SOCK_DGRAM, 0);
     uint8_t buffer[1450];
     buffer[0] = 255;
     while (true) {
-        auto next = clock::now() + std::chrono::milliseconds(100);
+        const auto next = clock::now() + 100ms;
         std::unique_lock<decltype(mutex)> lock(mutex);
-        if (ports.empty()) return 0;
+        if (ports.empty()) break;
         for (const auto &[port, lidar] : ports) {
             auto address = remote.load();
             if (address.sin_addr.s_addr && address.sin_port) {
@@ -61,4 +74,6 @@ int main() {
         lock.unlock();
         std::this_thread::sleep_until(next);
     }
+
+    return 1;
 }
