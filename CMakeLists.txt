@@ -11,6 +11,8 @@ if (UNIX)
 find_package(Threads REQUIRED)
 
 add_library(d10_linux
+    src/point_t.hpp
+
     src/d10_t.hh
     src/d10_t.cc
 
@@ -19,7 +21,7 @@ add_library(d10_linux
 
     app/d10_driver_linux.h
     app/d10_driver_linux.cpp)
-target_link_libraries(d10_linux ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(d10_linux atomic pthread)
 
 EXECUTE_PROCESS(COMMAND uname -m OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE architecture)
 if (architecture STREQUAL "aarch64")

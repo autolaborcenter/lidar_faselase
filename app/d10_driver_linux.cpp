@@ -4,8 +4,31 @@
 
 #include <unistd.h>// close
 
-#include <iostream>
+#include <cmath>
 #include <thread>
+
+
+bool common_filter(faselase::point_t p) {
+    constexpr static auto QUARTER = 5760 / 4;
+
+    auto dir = p.dir();
+    return dir < QUARTER || 3 * QUARTER <= dir;
+}
+
+bool front_filter(faselase::point_t p) {
+    // std::atan2(0.14, 012 - 0.113) ≈ 1.52084;
+    constexpr static auto LIMIT = static_cast<int>(5760 * 1.5 / (2 * M_PI));
+
+    auto dir = p.dir();
+    return dir < LIMIT || 3 * LIMIT <= dir;
+}
+
+bool back_filter(faselase::point_t p) {
+    constexpr static auto QUARTER = 5760 / 4;
+
+    auto dir = p.dir();
+    return dir < QUARTER || 3 * QUARTER <= dir;
+}
 
 std::unordered_map<std::string, faselase::d10_t>
 scan_lidars(std::mutex &mutex, std::condition_variable &signal) {
@@ -16,6 +39,7 @@ scan_lidars(std::mutex &mutex, std::condition_variable &signal) {
         auto map_iterator = lidars.try_emplace(name).first;
         std::thread([&, name, map_iterator, fd] {
             auto &lidar = map_iterator->second;
+            lidar.update_filter(common_filter);
             uint8_t buffer[256];
             uint8_t size = 0;
             do {

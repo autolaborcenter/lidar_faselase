@@ -1,10 +1,10 @@
 ﻿#include "d10_t.hh"
 
-#include <cstdint>
+#include <atomic>
 #include <cstring>
 #include <deque>
+#include <functional>
 #include <mutex>
-#include <utility>
 
 namespace faselase {
     class d10_t::implement_t {
@@ -27,32 +27,6 @@ namespace faselase {
             uint16_t value;
         };
         static_assert(sizeof(frame_value_t) == 2);
-
-        // 一个采样点
-        class point_t {
-            struct len_t {
-                uint16_t value : 11, : 5;
-            };
-            struct dir_t {
-                uint16_t : 3, value : 13;
-            };
-
-            uint8_t bytes[3];
-
-        public:
-            constexpr explicit point_t(uint16_t len = 0, uint16_t dir = 0)
-                : bytes{
-                      static_cast<uint8_t>(len),
-                      static_cast<uint8_t>((dir << 3) | (len >> 8)),
-                      static_cast<uint8_t>(dir >> 5),
-                  } {}
-
-            void len(uint16_t value) { reinterpret_cast<len_t *>(bytes)->value = value; }
-            uint16_t len() const { return reinterpret_cast<const len_t *>(bytes)->value; }
-
-            void dir(uint16_t value) { reinterpret_cast<dir_t *>(bytes + 1)->value = value; }
-            uint16_t dir() const { return reinterpret_cast<const dir_t *>(bytes + 1)->value; }
-        };
 
         // 一个采样帧
         union frame_t {
@@ -115,6 +89,8 @@ namespace faselase {
         std::deque<point_t> _queue0{point_t(1, 0)}, _queue1;
 
     public:
+        std::atomic<bool (*)(point_t)> filter = nullptr;
+
         size_t receive(void *buffer, size_t size) {
             auto ptr = reinterpret_cast<uint8_t *>(buffer);
             auto end = ptr + size;
@@ -125,7 +101,9 @@ namespace faselase {
                     ++ptr;
                 else {
                     auto point = frame->data();
-                    if (point.len() && point.dir() < 5760) {
+                    auto filter_ = filter.load();
+                    if (point.len() && point.dir() < 5760 &&
+                        (!filter_ || filter_(point))) {
                         std::lock_guard<decltype(_mutex)> lock(_mutex);
 
                         if (point.dir() > _queue0.back().dir())
@@ -175,7 +153,8 @@ namespace faselase {
     d10_t::d10_t(d10_t &&others) noexcept : _implement(std::exchange(others._implement, nullptr)) {}
     d10_t::~d10_t() { delete _implement; }
 
+    void d10_t::update_filter(bool (*filter)(point_t)) { _implement->filter.store(filter); }
+
     size_t d10_t::receive(void *buffer, size_t size) { return _implement->receive(buffer, size); }
     size_t d10_t::snapshot(void *buffer, size_t size) const { return _implement->snapshot(buffer, size); }
-
 }// namespace faselase

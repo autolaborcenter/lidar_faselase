@@ -10,4 +10,8 @@
 std::unordered_map<std::string, faselase::d10_t>
 scan_lidars(std::mutex &mutex, std::condition_variable &signal);
 
+bool common_filter(faselase::point_t);
+bool front_filter(faselase::point_t);
+bool back_filter(faselase::point_t);
+
 #endif// PM1_DRIVER_COMMON_H
