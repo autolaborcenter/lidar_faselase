@@ -32,12 +32,17 @@ int main() {
             std::unique_lock<decltype(mutex)> lock(mutex);
             if (ports.empty()) return 1;
             for (const auto &[port, lidar] : ports) {
-                using namespace std::views;
+                constexpr static auto FILTER = std::views::filter([](faselase::point_t p) {
+                    // asinf(.06f / .34f) ≈ 0.1774f
+                    constexpr static auto DIR = static_cast<uint16_t>(5760 * .18f / (2 * M_PI));
+                    auto dir = p.dir();
+                    return dir < DIR || (5760 - DIR) <= dir;
+                });
+
                 auto n = lidar.snapshot(buffer, sizeof(buffer));
                 auto rudder = 0,// 认定为舵轮的点
                     all = 0;    // 角度内所有点
-                // asinf(.06f / .34f) ≈ 0.1774f
-                for (auto p : std::span{buffer, n} | filter([](auto p) { return std::abs(p.dir()) < .18f; })) {
+                for (auto p : std::span{buffer, n} | FILTER) {
                     ++all;
                     auto len = p.len();
                     if ((34 - 6) < len && len < 34) ++rudder;

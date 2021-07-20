@@ -12,22 +12,22 @@ bool common_filter(faselase::point_t p) {
     constexpr static auto QUARTER = 5760 / 4;
 
     auto dir = p.dir();
-    return dir < QUARTER || 3 * QUARTER <= dir;
+    return dir < QUARTER || (5760 - QUARTER) <= dir;
 }
 
 bool front_filter(faselase::point_t p) {
     // std::atan2(0.14, 012 - 0.113) ≈ 1.52084;
-    constexpr static auto LIMIT = static_cast<int>(5760 * 1.5 / (2 * M_PI));
+    constexpr static auto LIMIT = static_cast<uint16_t>(5760 * 1.5 / (2 * M_PI));
 
     auto dir = p.dir();
-    return dir < LIMIT || 3 * LIMIT <= dir;
+    return dir < LIMIT || (5760 - LIMIT) <= dir;
 }
 
 bool back_filter(faselase::point_t p) {
     constexpr static auto QUARTER = 5760 / 4;
 
     auto dir = p.dir();
-    return dir < QUARTER || 3 * QUARTER <= dir;
+    return dir < QUARTER || (5760 - QUARTER) <= dir;
 }
 
 std::unordered_map<std::string, faselase::d10_t>
