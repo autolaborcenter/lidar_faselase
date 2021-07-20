@@ -3,15 +3,18 @@
 #include <arpa/inet.h>
 
 #include <atomic>
+#include <cmath>
 #include <cstring>
 #include <iostream>
+#include <ranges>
+#include <span>
 #include <sstream>
 #include <thread>
 
-#include <ranges>
-
 int main() {
     using namespace std::chrono_literals;
+
+    std::cout << asinf(.06f / .34f) << std::endl;
 
     std::mutex mutex;
     std::condition_variable signal;
@@ -24,12 +27,22 @@ int main() {
     }
     {// 确定前后
         faselase::point_t buffer[500];
-        for (auto i : std::views::iota(1, 3)) {
+        for (const auto _ : std::views::iota(1, 3)) {
             std::this_thread::sleep_for(120ms);// 保证更新一整帧
             std::unique_lock<decltype(mutex)> lock(mutex);
             if (ports.empty()) return 1;
             for (const auto &[port, lidar] : ports) {
+                using namespace std::views;
                 auto n = lidar.snapshot(buffer, sizeof(buffer));
+                auto rudder = 0,// 认定为舵轮的点
+                    all = 0;    // 角度内所有点
+                // asinf(.06f / .34f) ≈ 0.1774f
+                for (auto p : std::span{buffer, n} | filter([](auto p) { return std::abs(p.dir()) < .18f; })) {
+                    ++all;
+                    auto len = p.len();
+                    if ((34 - 6) < len && len < 34) ++rudder;
+                }
+                std::cout << port << ": " << rudder << ", " << all << std::endl;
             }
         }
     }
@@ -62,16 +75,15 @@ int main() {
     buffer[0] = 255;
     while (true) {
         const auto next = clock::now() + 100ms;
-        std::unique_lock<decltype(mutex)> lock(mutex);
-        if (ports.empty()) break;
-        for (const auto &[port, lidar] : ports) {
-            auto address = remote.load();
-            if (address.sin_addr.s_addr && address.sin_port) {
+        auto address = remote.load();
+        if (address.sin_addr.s_addr && address.sin_port) {
+            std::unique_lock<decltype(mutex)> lock(mutex);
+            if (ports.empty()) break;
+            for (const auto &[port, lidar] : ports) {
                 auto n = lidar.snapshot(buffer + 1, sizeof(buffer) - 1) + 1;
                 std::ignore = sendto(udp, buffer, n, MSG_WAITALL, reinterpret_cast<sockaddr *>(&remote), sizeof(remote));
             }
         }
-        lock.unlock();
         std::this_thread::sleep_until(next);
     }
 
