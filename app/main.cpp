@@ -1,4 +1,5 @@
-﻿#include "d10_driver_linux.h"
+﻿#include "serial_linux.h"
+#include "src/d10_t.hh"
 
 #include <arpa/inet.h>
 
@@ -11,48 +12,48 @@
 #include <sstream>
 #include <thread>
 
+static bool front_filter(faselase::point_t p) {
+    // std::atan2(0.14, 012 - 0.113) ≈ 1.52084;
+    constexpr static auto LIMIT = static_cast<uint16_t>(5760 * 1.5 / (2 * M_PI));
+
+    auto dir = p.dir();
+    return dir < LIMIT || (5760 - LIMIT) <= dir;
+}
+
+static bool back_filter(faselase::point_t p) {
+    constexpr static auto QUARTER = 5760 / 4;
+    constexpr static auto DEG20 = 5760 * 25 / 360;
+
+    auto dir = p.dir();
+    return (DEG20 < dir && dir <= QUARTER) || ((5760 - QUARTER) < dir && dir <= (5760 - DEG20));
+}
+
+static void launch_lidar(const char *name, faselase::d10_t &lidar) {
+    std::thread([fd = open_serial(name), &lidar] {
+        uint8_t buffer[256];
+        uint8_t size = 0;
+        do {
+            auto n = read(fd, buffer + size, sizeof(buffer) - size);
+            if (n <= 0) break;
+            size = lidar.receive(buffer, size + n);
+        } while (true);
+        close(fd);
+    }).detach();
+}
+
 int main() {
     using namespace std::chrono_literals;
 
-    std::cout << asinf(.06f / .34f) << std::endl;
+    faselase::d10_t front, back;
+    front.update_filter(front_filter);
+    back.update_filter(back_filter);
 
-    std::mutex mutex;
-    std::condition_variable signal;
-    std::atomic<sockaddr_in> remote({.sin_family = AF_INET});
-    // 打开雷达
-    auto ports = scan_lidars(mutex, signal);
-    {
-        auto size = ports.size();
-        if (size == 0 || size > 2) return 1;
-    }
-    {// 确定前后
-        faselase::point_t buffer[500];
-        for (const auto _ : std::views::iota(1, 3)) {
-            std::this_thread::sleep_for(120ms);// 保证更新一整帧
-            std::unique_lock<decltype(mutex)> lock(mutex);
-            if (ports.empty()) return 1;
-            for (const auto &[port, lidar] : ports) {
-                constexpr static auto FILTER = std::views::filter([](faselase::point_t p) {
-                    // asinf(.06f / .34f) ≈ 0.1774f
-                    constexpr static auto DIR = static_cast<uint16_t>(5760 * .18f / (2 * M_PI));
-                    auto dir = p.dir();
-                    return dir < DIR || (5760 - DIR) <= dir;
-                });
+    launch_lidar("/dev/serial/by-path/platform-70090000.xusb-usb-0:2.3.3.3:1.0-port0", front);
+    launch_lidar("/dev/serial/by-path/platform-70090000.xusb-usb-0:2.3.3.4:1.0-port0", back);
 
-                auto n = lidar.snapshot(buffer, sizeof(buffer));
-                auto rudder = 0,// 认定为舵轮的点
-                    all = 0;    // 角度内所有点
-                for (auto p : std::span{buffer, n} | FILTER) {
-                    ++all;
-                    auto len = p.len();
-                    if ((34 - 6) < len && len < 34) ++rudder;
-                }
-                std::cout << port << ": " << rudder << ", " << all << std::endl;
-            }
-        }
-    }
     // 解析控制指令
-    std::thread([&ports, &remote] {
+    std::atomic<sockaddr_in> remote({.sin_family = AF_INET});
+    std::thread([&remote] {
         std::string text;
         while (std::getline(std::cin, text)) {
             std::stringstream builder(text);
@@ -63,7 +64,7 @@ int main() {
             if (inet_pton(AF_INET, address.c_str(), &temp) <= 0) continue;
             try {
                 auto p = std::stoi(port);
-                if (0 < p && p < 65536)
+                if (0 <= p && p < 65536)
                     remote.store(sockaddr_in{
                         .sin_family = AF_INET,
                         .sin_port = htons(p),
@@ -73,6 +74,7 @@ int main() {
             }
         }
     }).detach();
+
     // 发送 udp
     using clock = std::chrono::steady_clock;
     auto udp = socket(AF_INET, SOCK_DGRAM, 0);
@@ -82,12 +84,14 @@ int main() {
         const auto next = clock::now() + 100ms;
         auto address = remote.load();
         if (address.sin_addr.s_addr && address.sin_port) {
-            std::unique_lock<decltype(mutex)> lock(mutex);
-            if (ports.empty()) break;
-            for (const auto &[port, lidar] : ports) {
-                auto n = lidar.snapshot(buffer + 1, sizeof(buffer) - 1) + 1;
-                std::ignore = sendto(udp, buffer, n, MSG_WAITALL, reinterpret_cast<sockaddr *>(&remote), sizeof(remote));
-            }
+            auto offset = 1;
+            auto m = front.snapshot(buffer + offset, sizeof(buffer) - offset);
+            offset += m;
+            auto n = back.snapshot(buffer + offset, sizeof(buffer) - offset);
+            offset += n;
+            *reinterpret_cast<uint16_t *>(buffer + offset) = m / 3;
+            offset += sizeof(uint16_t);
+            std::ignore = sendto(udp, buffer, offset, MSG_WAITALL, reinterpret_cast<sockaddr *>(&remote), sizeof(remote));
         }
         std::this_thread::sleep_until(next);
     }

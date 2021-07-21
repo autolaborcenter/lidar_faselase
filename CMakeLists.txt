@@ -17,10 +17,7 @@ add_library(d10_linux
     src/d10_t.cc
 
     app/serial_linux.h
-    app/serial_linux.cpp
-
-    app/d10_driver_linux.h
-    app/d10_driver_linux.cpp)
+    app/serial_linux.cpp)
 target_link_libraries(d10_linux atomic pthread)
 
 EXECUTE_PROCESS(COMMAND uname -m OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE architecture)
