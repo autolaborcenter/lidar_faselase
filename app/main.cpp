@@ -7,10 +7,11 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
-#include <ranges>
 #include <span>
 #include <sstream>
 #include <thread>
+
+using namespace std::chrono_literals;
 
 static bool front_filter(faselase::point_t p) {
     // std::atan2(0.14, 012 - 0.113) ≈ 1.52084;
@@ -29,21 +30,23 @@ static bool back_filter(faselase::point_t p) {
 }
 
 static void launch_lidar(const char *name, faselase::d10_t &lidar) {
-    std::thread([fd = open_serial(name), &lidar] {
+    std::thread([dev = std::string(name), &lidar] {
         uint8_t buffer[256];
         uint8_t size = 0;
-        do {
-            auto n = read(fd, buffer + size, sizeof(buffer) - size);
-            if (n <= 0) break;
-            size = lidar.receive(buffer, size + n);
-        } while (true);
-        close(fd);
+        while (true) {
+            auto fd = open_serial(dev.c_str());
+            do {
+                auto n = read(fd, buffer + size, sizeof(buffer) - size);
+                if (n <= 0) break;
+                size = lidar.receive(buffer, size + n);
+            } while (true);
+            close(fd);
+            std::this_thread::sleep_for(1s);
+        }
     }).detach();
 }
 
 int main() {
-    using namespace std::chrono_literals;
-
     faselase::d10_t front, back;
     front.update_filter(front_filter);
     back.update_filter(back_filter);
