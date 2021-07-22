@@ -3,7 +3,6 @@
 #include <atomic>
 #include <cstring>
 #include <deque>
-#include <functional>
 #include <mutex>
 
 namespace faselase {
@@ -86,7 +85,7 @@ namespace faselase {
         static_assert(sizeof(frame_t) == 4);
 
         mutable std::mutex _mutex;
-        std::deque<point_t> _queue0{point_t(1, 0)}, _queue1;
+        std::deque<point_t> _queue0, _queue1;
 
     public:
         std::atomic<bool (*)(point_t)> filter = nullptr;
@@ -101,20 +100,21 @@ namespace faselase {
                     ++ptr;
                 else {
                     auto point = frame->data();
-                    auto filter_ = filter.load();
-                    if (point.len() && point.dir() < 5760 &&
-                        (!filter_ || filter_(point))) {
+                    auto len = point.len();
+                    auto dir = point.dir();
+
+                    if (dir < 5760) {// dir>=5760 的不是采样数据，不知道有什么用
                         std::lock_guard<decltype(_mutex)> lock(_mutex);
-
-                        if (point.dir() > _queue0.back().dir())
-                            _queue0.push_back(point);
-                        else {
+                        // 交换缓冲
+                        if (!_queue0.empty() && dir <= _queue0.back().dir())
                             _queue1 = std::move(_queue0);
-                            _queue0 = std::deque<point_t>{point};
-                        }
-
-                        while (!_queue1.empty() && _queue1.front().dir() <= point.dir())
+                        // 销毁过期数据
+                        while (!_queue1.empty() && _queue1.front().dir() <= dir)
                             _queue1.pop_front();
+                        // 存入有效数据
+                        auto filter_ = filter.load();
+                        if (len && (!filter_ || filter_(point)))
+                            _queue0.push_back(point);
                     }
                     ptr += sizeof(frame_t);
                 }
@@ -126,20 +126,21 @@ namespace faselase {
 
         size_t snapshot(void *buffer, size_t size) const {
             auto ptr = reinterpret_cast<point_t *>(buffer);
+            size /= sizeof(point_t);
 
             std::lock_guard<decltype(_mutex)> lock(_mutex);
-            size /= sizeof(point_t);
             const auto size0 = _queue0.size(),
                        size1 = _queue1.size();
 
             if (size >= size0) {
                 std::copy(_queue0.begin(), _queue0.end(), ptr);
+                ptr += size0;
                 size -= size0;
                 if (size >= size1) {
-                    std::copy(_queue1.begin(), _queue1.end(), ptr + size0);
+                    std::copy(_queue1.begin(), _queue1.end(), ptr);
                     return (size0 + size1) * sizeof(point_t);
                 } else {
-                    std::copy_n(_queue0.begin(), size, ptr + size0);
+                    std::copy_n(_queue1.begin(), size, ptr);
                     return (size0 + size) * sizeof(point_t);
                 }
             } else {

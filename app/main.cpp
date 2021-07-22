@@ -35,11 +35,12 @@ static void launch_lidar(const char *name, faselase::d10_t &lidar) {
         uint8_t size = 0;
         while (true) {
             auto fd = open_serial(dev.c_str());
-            do {
-                auto n = read(fd, buffer + size, sizeof(buffer) - size);
-                if (n <= 0) break;
-                size = lidar.receive(buffer, size + n);
-            } while (true);
+            if (fd >= 0)
+                do {
+                    auto n = read(fd, buffer + size, sizeof(buffer) - size);
+                    if (n <= 0) break;
+                    size = lidar.receive(buffer, size + n);
+                } while (true);
             close(fd);
             std::this_thread::sleep_for(1s);
         }
@@ -81,25 +82,29 @@ int main() {
     }).detach();
 
     // 解析控制指令
-    std::string text;
-    while (std::getline(std::cin, text)) {
-        std::stringstream builder(text);
-        std::string address, port;
-        std::getline(builder, address, ':');
-        std::getline(builder, port);
-        in_addr temp;
-        if (inet_pton(AF_INET, address.c_str(), &temp) <= 0) continue;
-        try {
-            auto p = std::stoi(port);
-            if (0 <= p && p < 65536)
-                remote.store(sockaddr_in{
-                    .sin_family = AF_INET,
-                    .sin_port = htons(p),
-                    .sin_addr = temp,
-                });
-        } catch (...) {
+    std::string line;
+    while (std::getline(std::cin, line))
+        switch (line[0]) {
+            // [P]ath
+            case 'P': {
+                std::stringstream builder(line.c_str() + 2);
+
+            } break;
+            default: {
+                std::stringstream builder(line);
+                std::string temp;
+                in_addr address;
+                uint16_t port;
+                if (std::getline(builder, temp, ':') &&
+                    inet_pton(AF_INET, temp.c_str(), &address) > 0 &&
+                    builder >> port)
+                    remote.store(sockaddr_in{
+                        .sin_family = AF_INET,
+                        .sin_port = htons(port),
+                        .sin_addr = address,
+                    });
+            } break;
         }
-    }
 
     return 0;
 }
