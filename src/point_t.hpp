@@ -5,7 +5,7 @@
 #include <cstdint>
 
 namespace faselase {
-    // 一个采样点
+    // 一个采样点的压缩格式
     class point_t {
         struct len_t {
             uint16_t value : 11, : 5;
@@ -31,7 +31,13 @@ namespace faselase {
         uint16_t dir() const { return reinterpret_cast<const dir_t *>(bytes + 1)->value; }
     };
 
+    // 一个坐标
+    struct xy_t {
+        uint16_t x, y;
+    };
+
     static_assert(sizeof(point_t) == 3, "this is a zipped data.");
+    static_assert(sizeof(xy_t) == 4);
 }// namespace faselase
 
 #endif// POINT_T_HH

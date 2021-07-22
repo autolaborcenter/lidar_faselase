@@ -47,6 +47,12 @@ static void launch_lidar(const char *name, faselase::d10_t &lidar) {
     }).detach();
 }
 
+faselase::xy_t map(faselase::point_t p) {
+    auto l = p.len() * 10;
+    auto d = p.dir() * 2 * M_PI / 5760;
+    return {static_cast<uint16_t>(std::cos(d) * l), static_cast<uint16_t>(std::sin(d) * l)};
+}
+
 int main() {
     std::atomic<sockaddr_in> remote({.sin_family = AF_INET});
 
@@ -54,7 +60,7 @@ int main() {
     std::thread([&remote] {
         using clock = std::chrono::steady_clock;
 
-        faselase::d10_t front, back;
+        faselase::d10_t front(map), back(map);
         front.update_filter(front_filter);
         back.update_filter(back_filter);
 

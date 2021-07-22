@@ -1,9 +1,12 @@
 ﻿#include "d10_t.hh"
 
+#include <algorithm>
 #include <atomic>
 #include <cstring>
 #include <deque>
+#include <functional>
 #include <mutex>
+#include <shared_mutex>
 
 namespace faselase {
     class d10_t::implement_t {
@@ -76,18 +79,23 @@ namespace faselase {
             }
 
             point_t data() const {
-                return point_t(
-                    frame_value_t{.len{.l0 = l0, .l1 = l1, .l2 = l2}}.value,
-                    frame_value_t{.dir{.d0 = d0, .d1 = d1}}.value);
+                auto len = frame_value_t{.len{.l0 = l0, .l1 = l1, .l2 = l2}}.value;
+                auto dir = frame_value_t{.dir{.d0 = d0, .d1 = d1}}.value;
+                // 如果 11 位无法保存则视为无效数据
+                return point_t(len > 0x7ff ? 0 : len, dir);
             }
         };
 
         static_assert(sizeof(frame_t) == 4);
 
-        mutable std::mutex _mutex;
+        mutable std::shared_mutex _mutex;
         std::deque<point_t> _queue0, _queue1;
+        std::deque<xy_t> _xy0, _xy1;
+        std::function<xy_t(point_t)> _map;
 
     public:
+        implement_t(xy_t map(point_t)) : _map(map) {}
+
         std::atomic<bool (*)(point_t)> filter = nullptr;
 
         size_t receive(void *buffer, size_t size) {
@@ -99,24 +107,31 @@ namespace faselase {
                 if (!frame->verify())
                     ++ptr;
                 else {
+                    ptr += sizeof(frame_t);
+
                     auto point = frame->data();
                     auto len = point.len();
                     auto dir = point.dir();
 
                     if (dir < 5760) {// dir>=5760 的不是采样数据，不知道有什么用
-                        std::lock_guard<decltype(_mutex)> lock(_mutex);
+                        std::unique_lock<decltype(_mutex)> lock(_mutex);
                         // 交换缓冲
-                        if (!_queue0.empty() && dir <= _queue0.back().dir())
+                        if (!_queue0.empty() && dir <= _queue0.back().dir()) {
                             _queue1 = std::move(_queue0);
+                            _xy1 = std::move(_xy0);
+                        }
                         // 销毁过期数据
-                        while (!_queue1.empty() && _queue1.front().dir() <= dir)
+                        while (!_queue1.empty() && _queue1.front().dir() <= dir) {
                             _queue1.pop_front();
+                            _xy1.pop_front();
+                        }
                         // 存入有效数据
                         auto filter_ = filter.load();
-                        if (len && (!filter_ || filter_(point)))
+                        if (len && (!filter_ || filter_(point))) {
                             _queue0.push_back(point);
+                            _xy0.push_back(_map(point));
+                        }
                     }
-                    ptr += sizeof(frame_t);
                 }
             }
             size = end - ptr;
@@ -128,29 +143,31 @@ namespace faselase {
             auto ptr = reinterpret_cast<point_t *>(buffer);
             size /= sizeof(point_t);
 
-            std::lock_guard<decltype(_mutex)> lock(_mutex);
+            std::shared_lock<decltype(_mutex)> lock(_mutex);
             const auto size0 = _queue0.size(),
                        size1 = _queue1.size();
 
             if (size >= size0) {
-                std::copy(_queue0.begin(), _queue0.end(), ptr);
-                ptr += size0;
-                size -= size0;
-                if (size >= size1) {
-                    std::copy(_queue1.begin(), _queue1.end(), ptr);
-                    return (size0 + size1) * sizeof(point_t);
-                } else {
-                    std::copy_n(_queue1.begin(), size, ptr);
-                    return (size0 + size) * sizeof(point_t);
-                }
+                if (size >= size0 + size1) size = size1;
+                std::copy_n(_queue0.begin(), size0, ptr);
+                std::copy_n(_queue1.begin(), size, ptr + size0);
+                return (size0 + size) * sizeof(point_t);
             } else {
                 std::copy_n(_queue0.begin(), size, ptr);
                 return size * sizeof(point_t);
             }
         }
+
+        auto snapshot() const {
+            std::shared_lock<decltype(_mutex)> lock(_mutex);
+            std::vector<xy_t> result(_xy0.size() + _xy1.size());
+            std::ranges::copy(_xy0, result.begin());
+            std::ranges::copy(_xy1, result.begin() + _xy0.size());
+            return result;
+        }
     };
 
-    d10_t::d10_t() : _implement(new implement_t) {}
+    d10_t::d10_t(xy_t map(point_t)) : _implement(new implement_t(map)) {}
     d10_t::d10_t(d10_t &&others) noexcept : _implement(std::exchange(others._implement, nullptr)) {}
     d10_t::~d10_t() { delete _implement; }
 
@@ -158,4 +175,5 @@ namespace faselase {
 
     size_t d10_t::receive(void *buffer, size_t size) { return _implement->receive(buffer, size); }
     size_t d10_t::snapshot(void *buffer, size_t size) const { return _implement->snapshot(buffer, size); }
+    std::vector<xy_t> d10_t::snapshot_map() const { return _implement->snapshot(); }
 }// namespace faselase

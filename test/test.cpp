@@ -1,6 +1,7 @@
 ﻿#include "app/serial_linux.h"
 #include "src/d10_t.hh"
 
+#include <cmath>
 #include <cstring>
 #include <iostream>
 #include <thread>
@@ -10,7 +11,7 @@ using namespace std::chrono_literals;
 static void launch_lidar(const char *name, faselase::d10_t &lidar) {
     std::thread([dev = std::string(name), &lidar] {
         uint8_t buffer[256];
-        uint8_t size = 0;
+        size_t size = 0;
         while (true) {
             auto fd = open_serial(dev.c_str());
             if (fd >= 0)
@@ -28,7 +29,11 @@ static void launch_lidar(const char *name, faselase::d10_t &lidar) {
 int main() {
     using clock = std::chrono::steady_clock;
 
-    faselase::d10_t lidar;
+    faselase::d10_t lidar([](auto p) {
+        auto l = p.len() * 10;
+        auto d = p.dir() * 2 * M_PI / 5760;
+        return faselase::xy_t{static_cast<uint16_t>(std::cos(d) * l), static_cast<uint16_t>(std::sin(d) * l)};
+    });
     launch_lidar("/dev/serial/by-path/pci-0000:05:00.4-usb-0:1.2.1:1.0-port0", lidar);
 
     uint8_t buffer[1450];
