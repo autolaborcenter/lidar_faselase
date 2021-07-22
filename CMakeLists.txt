@@ -12,6 +12,7 @@ find_package(Threads REQUIRED)
 
 add_library(d10_linux
     src/point_t.hpp
+    src/vector2d_t.hpp
 
     src/d10_t.hh
     src/d10_t.cc

@@ -2,6 +2,7 @@
 #define D10_T_HH
 
 #include "point_t.hpp"
+#include "vector2d_t.hpp"
 
 #include <vector>
 
@@ -11,7 +12,7 @@ namespace faselase {
         implement_t *_implement;
 
     public:
-        d10_t(xy_t(point_t));
+        d10_t(vector2d_t(point_t));
         d10_t(d10_t const &) = delete;
         d10_t(d10_t &&) noexcept;
         ~d10_t();
@@ -24,7 +25,7 @@ namespace faselase {
         size_t snapshot(void *, size_t) const;
 
         // 拷贝直角坐标的一帧
-        std::vector<xy_t> snapshot_map() const;
+        std::vector<vector2d_t> snapshot_map() const;
     };
 }// namespace faselase
 
