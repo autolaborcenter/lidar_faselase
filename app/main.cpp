@@ -1,4 +1,5 @@
-﻿#include "serial_linux.h"
+﻿#include "obstacles.h"
+#include "serial_linux.h"
 #include "src/d10_t.hh"
 
 #include <arpa/inet.h>
@@ -7,7 +8,6 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
-#include <span>
 #include <sstream>
 #include <thread>
 
@@ -49,29 +49,29 @@ static void launch_lidar(const char *name, faselase::d10_t &lidar) {
 }
 
 int main() {
+    faselase::d10_t
+        front([](faselase::point_t p) {
+            auto l = p.len() * 10;
+            auto d = p.dir() * 2 * M_PI / 5760;
+            return v2d_t{
+                static_cast<int16_t>(std::cos(d) * l + 118),
+                static_cast<int16_t>(std::sin(d) * l),
+            };
+        }),
+        back([](faselase::point_t p) {
+            auto l = p.len() * -10;
+            auto d = p.dir() * 2 * M_PI / 5760;
+            return v2d_t{
+                static_cast<int16_t>(std::cos(d) * l - 141),
+                static_cast<int16_t>(std::sin(d) * l),
+            };
+        });
     std::atomic<sockaddr_in> remote({.sin_family = AF_INET});
 
     // 发送 udp
-    std::thread([&remote] {
+    std::thread([&] {
         using clock = std::chrono::steady_clock;
 
-        faselase::d10_t
-            front([](faselase::point_t p) {
-                auto l = p.len() * 10;
-                auto d = p.dir() * 2 * M_PI / 5760;
-                return v2d_t{
-                    static_cast<int16_t>(std::cos(d) * l + 118),
-                    static_cast<int16_t>(std::sin(d) * l),
-                };
-            }),
-            back([](faselase::point_t p) {
-                auto l = p.len() * -10;
-                auto d = p.dir() * 2 * M_PI / 5760;
-                return v2d_t{
-                    static_cast<int16_t>(std::cos(d) * l - 141),
-                    static_cast<int16_t>(std::sin(d) * l),
-                };
-            });
         front.update_filter(front_filter);
         back.update_filter(back_filter);
 
@@ -102,10 +102,14 @@ int main() {
     std::string line;
     while (std::getline(std::cin, line))
         switch (line[0]) {
-            // [P]ath
+            using namespace autolabor::pm1;
+            // [P]ath -> [R]isk
             case 'P': {
-                std::stringstream builder(line.c_str() + 2);
-
+                auto [id, path] = parse_path(line);
+                if (!id.empty()) {
+                    auto index = check_collision(path, {front.snapshot_map(), back.snapshot_map()});
+                    std::cout << "R " << id << ' ' << +index << std::endl;
+                }
             } break;
             default: {
                 std::stringstream builder(line);

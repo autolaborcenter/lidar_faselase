@@ -1,4 +1,5 @@
-﻿#include "app/serial_linux.h"
+﻿#include "app/obstacles.h"
+#include "app/serial_linux.h"
 #include "src/d10_t.hh"
 
 #include <algorithm>
@@ -9,8 +10,8 @@
 #include <thread>
 
 using namespace std::chrono_literals;
-using v2d_t = faselase::v2d_t;
-using pose2d_t = mechdancer::geometry_2d::pose_t;
+using namespace autolabor::pm1;
+using v2d_t = mechdancer::geometry_2d::vector_t;
 
 static void launch_lidar(const char *name, faselase::d10_t &lidar) {
     std::thread([dev = std::string(name), &lidar] {
@@ -28,34 +29,6 @@ static void launch_lidar(const char *name, faselase::d10_t &lidar) {
             std::this_thread::sleep_for(1s);
         }
     }).detach();
-}
-
-std::pair<std::string, std::vector<pose2d_t>> parse_path(std::string line) {
-    std::stringstream builder(line);
-
-    std::string id, temp;
-    if (!(builder >> temp >> id)) return {};
-
-    std::vector<pose2d_t> path;
-    while (builder >> temp) {
-        std::ranges::replace(temp, ',', ' ');
-        pose2d_t p;
-        if (std::stringstream(temp) >> p.pos.x >> p.pos.y >> p.dir)
-            path.push_back(p);
-        else
-            return {};
-    }
-    return {std::move(id), std::move(path)};
-}
-
-uint8_t check(std::vector<pose2d_t> const &path, std::vector<v2d_t> const &obstacles) {
-    for (auto i = 0; i < path.size(); ++i) {
-        const auto limit = 250 + i * 50;
-        const auto p = path[i].pos;
-        for (auto q : obstacles)
-            if (distance(p, q) < limit) return i;
-    }
-    return -1;
 }
 
 int main() {
@@ -80,9 +53,8 @@ int main() {
             // [P]ath -> [W]arn
             case 'P': {
                 auto [id, path] = parse_path(line);
-                if (id.empty()) break;
-                auto obstacles = lidar.snapshot_map();
-                std::cout << "R " << id << ' ' << +check(path, obstacles) << std::endl;
+                if (!id.empty())
+                    std::cout << "R " << id << ' ' << +check_collision(path, {lidar.snapshot_map()}) << std::endl;
             } break;
         }
 }
