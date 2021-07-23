@@ -52,16 +52,22 @@ namespace mechdancer::geometry_2d {
         std::ranges::sized_range<t> &&
         std::is_same_v<std::ranges::range_value_t<t>, vector_t>;
 
-    inline static auto check_cross(vector_t v, vector_t v0, vector_t v1) {
+    // 判断未穿、上穿或下穿
+    inline static int check_cross(vector_t v, vector_t v0, vector_t v1) {
         if (v0.y == v1.y) return 0;
-        if (v0.y < v1.y) {
-            if (v0.y <= v.y && v.y < v1.y && cross(v1 - v0, v - v0) >= 0) return 1;
+        if (v0.y < v1.y) {// 判断线段向上还是向下
+            // 射线穿过线段或线段下端点，且在起点在线段右侧 -> 线段上穿射线
+            if (v0.y <= v.y && v.y < v1.y &&
+                ((v0.x >= v.x && v1.x >= v.x) || cross(v1 - v0, v - v0) >= 0)) return +1;
         } else {
-            if (v1.y <= v.y && v.y < v0.y && cross(v0 - v1, v - v1) >= 0) return -1;
+            // 射线穿过线段或线段下端点，且在起点在线段右侧 -> 线段下穿射线
+            if (v1.y <= v.y && v.y < v0.y &&
+                ((v0.x >= v.x && v1.x >= v.x) || cross(v0 - v1, v - v1) >= 0)) return -1;
         }
         return 0;
     }
 
+    // 判断点在多边形内
     template<polygon_t t>
     inline bool check_inside(t const &polygon, vector_t v) {
         auto size = std::ranges::size(polygon);

@@ -11,6 +11,8 @@ if (UNIX)
 find_package(Threads REQUIRED)
 
 add_library(d10_linux
+    app/robot_outline.hpp
+
     src/point_t.hpp
     src/pose2d_t.hpp
 
