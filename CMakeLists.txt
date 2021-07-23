@@ -32,8 +32,10 @@ else ()
 add_executable(d10_unix app/main.cpp)
 target_link_libraries(d10_unix d10_linux)
 
-add_executable(d10_test test/test.cpp)
-target_link_libraries(d10_test d10_linux)
+add_executable(test_d10 test/test.cpp)
+target_link_libraries(test_d10 d10_linux)
+
+add_executable(test_geometry test/test_geometry.cpp)
 
 endif ()
 
