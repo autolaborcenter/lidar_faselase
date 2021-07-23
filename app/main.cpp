@@ -12,6 +12,7 @@
 #include <thread>
 
 using namespace std::chrono_literals;
+using v2d_t = faselase::v2d_t;
 
 static bool front_filter(faselase::point_t p) {
     // std::atan2(0.14, 012 - 0.113) ≈ 1.52084;
@@ -58,7 +59,7 @@ int main() {
             front([](faselase::point_t p) {
                 auto l = p.len() * 10;
                 auto d = p.dir() * 2 * M_PI / 5760;
-                return vector2d_t{
+                return v2d_t{
                     static_cast<int16_t>(std::cos(d) * l + 118),
                     static_cast<int16_t>(std::sin(d) * l),
                 };
@@ -66,7 +67,7 @@ int main() {
             back([](faselase::point_t p) {
                 auto l = p.len() * -10;
                 auto d = p.dir() * 2 * M_PI / 5760;
-                return vector2d_t{
+                return v2d_t{
                     static_cast<int16_t>(std::cos(d) * l - 141),
                     static_cast<int16_t>(std::sin(d) * l),
                 };

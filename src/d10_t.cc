@@ -90,11 +90,11 @@ namespace faselase {
 
         mutable std::shared_mutex _mutex;
         std::deque<point_t> _queue0, _queue1;
-        std::deque<vector2d_t> _xy0, _xy1;
-        std::function<vector2d_t(point_t)> _map;
+        std::deque<v2d_t> _xy0, _xy1;
+        std::function<v2d_t(point_t)> _map;
 
     public:
-        implement_t(vector2d_t map(point_t)) : _map(map) {}
+        implement_t(v2d_t map(point_t)) : _map(map) {}
 
         std::atomic<bool (*)(point_t)> filter = nullptr;
 
@@ -160,14 +160,14 @@ namespace faselase {
 
         auto snapshot() const {
             std::shared_lock<decltype(_mutex)> lock(_mutex);
-            std::vector<vector2d_t> result(_xy0.size() + _xy1.size());
+            std::vector<v2d_t> result(_xy0.size() + _xy1.size());
             std::ranges::copy(_xy0, result.begin());
             std::ranges::copy(_xy1, result.begin() + _xy0.size());
             return result;
         }
     };
 
-    d10_t::d10_t(vector2d_t map(point_t)) : _implement(new implement_t(map)) {}
+    d10_t::d10_t(v2d_t map(point_t)) : _implement(new implement_t(map)) {}
     d10_t::d10_t(d10_t &&others) noexcept : _implement(std::exchange(others._implement, nullptr)) {}
     d10_t::~d10_t() { delete _implement; }
 
@@ -175,5 +175,5 @@ namespace faselase {
 
     size_t d10_t::receive(void *buffer, size_t size) { return _implement->receive(buffer, size); }
     size_t d10_t::snapshot(void *buffer, size_t size) const { return _implement->snapshot(buffer, size); }
-    std::vector<vector2d_t> d10_t::snapshot_map() const { return _implement->snapshot(); }
+    std::vector<v2d_t> d10_t::snapshot_map() const { return _implement->snapshot(); }
 }// namespace faselase

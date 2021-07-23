@@ -9,6 +9,8 @@
 #include <thread>
 
 using namespace std::chrono_literals;
+using v2d_t = faselase::v2d_t;
+using pose2d_t = mechdancer::geometry_2d::pose_t;
 
 static void launch_lidar(const char *name, faselase::d10_t &lidar) {
     std::thread([dev = std::string(name), &lidar] {
@@ -28,21 +30,16 @@ static void launch_lidar(const char *name, faselase::d10_t &lidar) {
     }).detach();
 }
 
-struct path_point_t {
-    vector2d_t pos;
-    float dir;
-};
-
-std::pair<std::string, std::vector<path_point_t>> parse_path(std::string line) {
+std::pair<std::string, std::vector<pose2d_t>> parse_path(std::string line) {
     std::stringstream builder(line);
 
     std::string id, temp;
     if (!(builder >> temp >> id)) return {};
 
-    std::vector<path_point_t> path;
+    std::vector<pose2d_t> path;
     while (builder >> temp) {
         std::ranges::replace(temp, ',', ' ');
-        path_point_t p;
+        pose2d_t p;
         if (std::stringstream(temp) >> p.pos.x >> p.pos.y >> p.dir)
             path.push_back(p);
         else
@@ -51,7 +48,7 @@ std::pair<std::string, std::vector<path_point_t>> parse_path(std::string line) {
     return {std::move(id), std::move(path)};
 }
 
-uint8_t check(std::vector<path_point_t> const &path, std::vector<vector2d_t> const &obstacles) {
+uint8_t check(std::vector<pose2d_t> const &path, std::vector<v2d_t> const &obstacles) {
     for (auto i = 0; i < path.size(); ++i) {
         const auto limit = 250 + i * 50;
         const auto p = path[i].pos;
@@ -67,7 +64,7 @@ int main() {
     faselase::d10_t lidar([](auto p) {
         auto l = p.len() * 10;
         auto d = p.dir() * 2 * M_PI / 5760;
-        return vector2d_t{
+        return v2d_t{
             static_cast<int16_t>(std::cos(d) * l),
             static_cast<int16_t>(std::sin(d) * l),
         };
