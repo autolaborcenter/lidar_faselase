@@ -68,8 +68,7 @@ namespace mechdancer::geometry_2d {
     }
 
     // 判断点在多边形内
-    template<polygon_t t>
-    inline bool check_inside(t const &polygon, vector_t v) {
+    inline bool check_inside(polygon_t auto const &polygon, vector_t v) {
         auto size = std::ranges::size(polygon);
         if (size < 3) return false;
 
@@ -110,8 +109,7 @@ namespace mechdancer::geometry_2d {
             };
         }
 
-        template<polygon_t t>
-        auto operator()(t const &polygon) const {
+        auto operator()(polygon_t auto const &polygon) const {
             std::vector<vector_t> result(std::ranges::size(polygon));
             std::ranges::copy(polygon | std::views::transform([this](auto v) { return operator()(v); }), result.begin());
             return result;
@@ -119,8 +117,7 @@ namespace mechdancer::geometry_2d {
 
         auto operator*(vector_t v) const { return operator()(v); }
         auto operator*(pose_t p) const { return operator()(p); }
-        template<polygon_t t>
-        auto operator*(t const &p) const { return operator()(p); }
+        auto operator*(polygon_t auto const &p) const { return operator()(p); }
     };
 }// namespace mechdancer::geometry_2d
 

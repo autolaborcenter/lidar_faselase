@@ -25,12 +25,37 @@ namespace autolabor::pm1 {
         return {std::move(id), std::move(path)};
     }
 
+    std::pair<vector_t, vector_t> min_max(polygon_t auto polygon) {
+        auto ptr = std::ranges::begin(polygon),
+             end = std::ranges::end(polygon);
+
+        auto min = *ptr, max = *ptr;
+        for (++ptr; ptr != end; ++ptr) {
+
+            if (ptr->x > max.x)
+                max.x = ptr->x;
+            else if (ptr->x < min.x)
+                min.x = ptr->x;
+
+            if (ptr->y > max.y)
+                max.y = ptr->y;
+            else if (ptr->y < min.y)
+                min.y = ptr->y;
+        }
+
+        return {min, max};
+    }
+
     uint8_t check_collision(path_t const &path, std::vector<obstacles_t> const &obstacles) {
+        if (path.empty()) return -1;
         for (auto i = 0; i < path.size(); ++i) {
             auto outline = transformation_t(path[i])(autolabor::pm1::outline);
-            for (auto group : obstacles)
+            auto [min, max] = min_max(outline);
+            for (const auto &group : obstacles)
                 for (auto o : group)
-                    if (check_inside(outline, o)) return i;
+                    if (min.x < o.x && o.x < max.x &&
+                        min.y < o.y && o.y < max.y &&
+                        check_inside(outline, o)) return i;
         }
         return -1;
     }
