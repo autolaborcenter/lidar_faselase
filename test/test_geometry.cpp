@@ -14,7 +14,7 @@ int main() {
 
     auto transformed = trans(outline);
     std::cout << std::boolalpha
-              << check_inside(transformed, vector_t{0, 150}) << std::endl
-              << check_inside(transformed, vector_t{180, 50}) << std::endl;
+              << check_inside(transformed, vector_t<>{0, 150}) << std::endl
+              << check_inside(transformed, vector_t<>{180, 50}) << std::endl;
     return 0;
 }

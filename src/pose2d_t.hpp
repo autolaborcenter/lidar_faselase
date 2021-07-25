@@ -9,8 +9,9 @@
 #include <iostream>
 
 namespace mechdancer::geometry_2d {
+    template<class t = int16_t>
     struct vector_t {
-        int16_t x, y;
+        t x, y;
 
         vector_t &operator+=(vector_t others) {
             x += others.x;
@@ -24,36 +25,51 @@ namespace mechdancer::geometry_2d {
         }
         vector_t operator+(vector_t others) const { return others += *this; }
         vector_t operator-(vector_t others) const { return vector_t{*this} -= others; }
-        int length() const { return std::lround(std::hypot(x, y)); }
+
+        template<class r = t>
+        r length() const {
+            if constexpr (std::is_integral_v<r>)
+                return std::lround(std::hypot(x, y));
+            else
+                return std::hypot(x, y);
+        }
+
+        template<class r = float>
+        vector_t<r> normalize() const {
+            auto len = length<r>();
+            return {x / len, y / len};
+        }
     };
 
     struct pose_t {
-        vector_t pos;
+        vector_t<> pos;
         float dir;
     };
 
-    static_assert(sizeof(vector_t) == 4);
     static_assert(sizeof(pose_t) == 8);
 
-    inline int dot(vector_t a, vector_t b) {
+    template<class t>
+    inline auto dot(vector_t<t> a, vector_t<t> b) {
         return a.x * b.x + a.y * b.y;
     }
 
-    inline int cross(vector_t a, vector_t b) {
+    template<class t>
+    inline auto cross(vector_t<t> a, vector_t<t> b) {
         return a.x * b.y - a.y * b.x;
     }
 
-    inline int distance(vector_t a, vector_t b) {
+    template<class t>
+    inline auto distance(vector_t<t> a, vector_t<t> b) {
         return (a - b).length();
     }
 
     template<class t>
     concept polygon_t =
         std::ranges::sized_range<t> &&
-        std::is_same_v<std::ranges::range_value_t<t>, vector_t>;
+        std::is_same_v<std::ranges::range_value_t<t>, vector_t<>>;
 
     // 判断未穿、上穿或下穿
-    inline static int check_cross(vector_t v, vector_t v0, vector_t v1) {
+    inline static int check_cross(vector_t<> v, vector_t<> v0, vector_t<> v1) {
         if (v0.y == v1.y) return 0;
         if (v0.y < v1.y) {// 判断线段向上还是向下
             // 射线穿过线段或线段下端点，且在起点在线段右侧 -> 线段上穿射线
@@ -68,7 +84,7 @@ namespace mechdancer::geometry_2d {
     }
 
     // 判断点在多边形内
-    inline bool check_inside(polygon_t auto const &polygon, vector_t v) {
+    inline bool check_inside(polygon_t auto const &polygon, vector_t<> v) {
         auto size = std::ranges::size(polygon);
         if (size < 3) return false;
 
@@ -95,7 +111,7 @@ namespace mechdancer::geometry_2d {
               _cos(std::cos(pose.dir)),
               _sin(std::sin(pose.dir)) {}
 
-        auto operator()(vector_t v) const {
+        auto operator()(vector_t<> v) const {
             return vector_t{
                 static_cast<int16_t>(std::lround(_cos * v.x - _sin * v.y + _pose.pos.x)),
                 static_cast<int16_t>(std::lround(_sin * v.x + _cos * v.y + _pose.pos.y)),
@@ -110,12 +126,13 @@ namespace mechdancer::geometry_2d {
         }
 
         auto operator()(polygon_t auto const &polygon) const {
-            std::vector<vector_t> result(std::ranges::size(polygon));
+            using element_t = std::ranges::range_value_t<decltype(polygon)>;
+            std::vector<element_t> result(std::ranges::size(polygon));
             std::ranges::copy(polygon | std::views::transform([this](auto v) { return operator()(v); }), result.begin());
             return result;
         }
 
-        auto operator*(vector_t v) const { return operator()(v); }
+        auto operator*(vector_t<> v) const { return operator()(v); }
         auto operator*(pose_t p) const { return operator()(p); }
         auto operator*(polygon_t auto const &p) const { return operator()(p); }
     };

@@ -7,7 +7,7 @@
 #include <vector>
 
 namespace faselase {
-    using v2d_t = mechdancer::geometry_2d::vector_t;
+    using v2d_t = mechdancer::geometry_2d::vector_t<int16_t>;
 
     class d10_t {
         class implement_t;

@@ -11,7 +11,7 @@
 
 using namespace std::chrono_literals;
 using namespace autolabor::pm1;
-using v2d_t = mechdancer::geometry_2d::vector_t;
+using v2d_t = faselase::v2d_t;
 
 static void launch_lidar(const char *name, faselase::d10_t &lidar) {
     std::thread([dev = std::string(name), &lidar] {

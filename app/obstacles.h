@@ -8,7 +8,7 @@
 
 namespace autolabor::pm1 {
     using path_t = std::vector<mechdancer::geometry_2d::pose_t>;
-    using obstacles_t = std::vector<mechdancer::geometry_2d::vector_t>;
+    using obstacles_t = std::vector<mechdancer::geometry_2d::vector_t<int16_t>>;
 
     // 从字符串中解析一条轨迹
     std::pair<std::string, path_t> parse_path(std::string line);

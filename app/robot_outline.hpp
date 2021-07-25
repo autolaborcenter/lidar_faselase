@@ -6,7 +6,7 @@
 #include <array>
 
 namespace autolabor::pm1 {
-    using vertex_t = mechdancer::geometry_2d::vector_t;
+    using vertex_t = mechdancer::geometry_2d::vector_t<int16_t>;
 
     constexpr auto half_outline = std::to_array({
         vertex_t{+250, +80},

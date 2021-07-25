@@ -25,7 +25,44 @@ namespace autolabor::pm1 {
         return {std::move(id), std::move(path)};
     }
 
-    std::pair<vector_t, vector_t> min_max(polygon_t auto polygon) {
+    auto enlarge(polygon_t auto polygon, uint16_t d) {
+        const auto size = std::ranges::size(polygon);
+
+        std::vector<vector_t<float>> dirs(size + 1);
+        auto p = std::ranges::begin(polygon),
+             end = std::ranges::end(polygon);
+        auto front = *p;
+
+        auto q = dirs.begin();
+        ++q;
+
+        // 计算归一化边向量
+        while (true) {
+            auto v0 = *p++;
+            if (p == end) {
+                dirs.front() = *q = (front - v0).normalize();
+                break;
+            }
+            *q++ = (*p - v0).normalize();
+        }
+
+        q = dirs.begin();
+        std::vector<vector_t<>> result(size);
+        for (auto &r : result) {
+            auto a = *q;
+            auto b = *++q;
+            auto diff = a - b;
+            auto k = d / cross(a, b);
+            r = {
+                static_cast<int16_t>(std::lroundf(diff.x * k)),
+                static_cast<int16_t>(std::lroundf(diff.y * k)),
+            };
+        }
+        return result;
+    }
+
+    // 多边形外框
+    auto min_max(polygon_t auto polygon) {
         auto ptr = std::ranges::begin(polygon),
              end = std::ranges::end(polygon);
 
@@ -43,13 +80,13 @@ namespace autolabor::pm1 {
                 min.y = ptr->y;
         }
 
-        return {min, max};
+        return std::pair{min, max};
     }
 
     uint8_t check_collision(path_t const &path, std::vector<obstacles_t> const &obstacles) {
         if (path.empty()) return -1;
         for (auto i = 0; i < path.size(); ++i) {
-            auto outline = transformation_t(path[i])(autolabor::pm1::outline);
+            auto outline = enlarge(transformation_t(path[i])(autolabor::pm1::outline), i * 50);
             auto [min, max] = min_max(outline);
             for (const auto &group : obstacles)
                 for (auto o : group)
