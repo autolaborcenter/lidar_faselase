@@ -2,6 +2,7 @@
 
 #include "robot_outline.hpp"
 
+#include <algorithm>
 #include <sstream>
 
 namespace autolabor::pm1 {
@@ -27,8 +28,10 @@ namespace autolabor::pm1 {
 
     uint8_t check_collision(path_t const &path, std::vector<obstacles_t> const &obstacles) {
         if (path.empty()) return -1;
+        constexpr static auto &pm1 = autolabor::pm1::outline;
+        std::vector<vector_t<>> outline(pm1.size());
         for (auto i = 0; i < path.size(); ++i) {
-            auto outline = enlarge(transformation_t(path[i])(autolabor::pm1::outline), i * 50);
+            std::ranges::copy(pm1 | (transformation_t(path[i]) * (1 + i * .1f)).pipe(), outline.begin());
             auto [min, max] = min_max(outline);
             for (const auto &group : obstacles)
                 for (auto o : group)

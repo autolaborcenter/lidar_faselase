@@ -145,7 +145,7 @@ namespace mechdancer::geometry_2d {
     }
 
     // 多边形外框
-    auto min_max(polygon_t auto polygon) {
+    inline auto min_max(polygon_t auto polygon) {
         auto ptr = std::ranges::begin(polygon),
              end = std::ranges::end(polygon);
 
@@ -190,16 +190,23 @@ namespace mechdancer::geometry_2d {
             };
         }
 
-        auto operator()(polygon_t auto const &polygon) const {
-            using element_t = std::ranges::range_value_t<decltype(polygon)>;
-            std::vector<element_t> result(std::ranges::size(polygon));
-            std::ranges::copy(polygon | std::views::transform([this](auto v) { return operator()(v); }), result.begin());
-            return result;
+        auto pipe() const {
+            return std::views::transform([this](auto v) { return operator()(v); });
         }
 
         auto operator*(vector_t<> v) const { return operator()(v); }
         auto operator*(pose_t p) const { return operator()(p); }
-        auto operator*(polygon_t auto const &p) const { return operator()(p); }
+
+        transformation_t &operator*=(float k) {
+            _cos *= k;
+            _sin *= k;
+            return *this;
+        }
+
+        transformation_t operator*(float k) {
+            auto copy = *this;
+            return copy *= k;
+        }
     };
 }// namespace mechdancer::geometry_2d
 
