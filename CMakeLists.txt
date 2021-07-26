@@ -12,7 +12,6 @@ find_package(Threads REQUIRED)
 
 add_library(d10_linux
     src/point_t.hpp
-    src/pose2d_t.hpp
 
     src/d10_t.hh
     src/d10_t.cc
@@ -22,7 +21,6 @@ add_library(d10_linux
 target_link_libraries(d10_linux atomic pthread)
 
 add_library(obstacle
-    src/pose2d_t.hpp
     app/robot_outline.hpp
 
     app/obstacles.h

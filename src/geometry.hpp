@@ -48,18 +48,18 @@ namespace mechdancer::geometry_2d {
 
     static_assert(sizeof(pose_t) == 8);
 
-    template<class t>
-    inline auto dot(vector_t<t> a, vector_t<t> b) {
+    template<class t, class u>
+    inline auto dot(vector_t<t> a, vector_t<u> b) {
         return a.x * b.x + a.y * b.y;
     }
 
-    template<class t>
-    inline auto cross(vector_t<t> a, vector_t<t> b) {
+    template<class t, class u>
+    inline auto cross(vector_t<t> a, vector_t<u> b) {
         return a.x * b.y - a.y * b.x;
     }
 
-    template<class t>
-    inline auto distance(vector_t<t> a, vector_t<t> b) {
+    template<class t, class u>
+    inline auto distance(vector_t<t> a, vector_t<u> b) {
         return (a - b).length();
     }
 
@@ -84,6 +84,7 @@ namespace mechdancer::geometry_2d {
     }
 
     // 判断点在多边形内
+    // 作从点出发向 x 正方向的射线，线段上穿次数等于下穿次数则点在内部
     inline bool check_inside(polygon_t auto const &polygon, vector_t<> v) {
         auto size = std::ranges::size(polygon);
         if (size < 3) return false;
@@ -99,6 +100,70 @@ namespace mechdancer::geometry_2d {
             v0 = v1;
         }
         return i + check_cross(v, v0, front);
+    }
+
+    // 多边形扩张
+    // 两条连续的边不能共线
+    // 不能用于收缩
+    inline auto enlarge(polygon_t auto polygon, uint16_t d) {
+        const auto size = std::ranges::size(polygon);
+        std::vector<vector_t<float>> dirs(size + 1);
+        std::vector<vector_t<>> result(size);
+        {// 计算归一化边向量
+            auto p = std::ranges::begin(polygon),
+                 end = std::ranges::end(polygon);
+            auto front = *p;
+
+            auto q = dirs.begin();
+            ++q;
+
+            while (true) {
+                auto v0 = *p++;
+                if (p == end) {
+                    dirs.front() = *q = (front - v0).normalize();
+                    break;
+                }
+                *q++ = (*p - v0).normalize();
+            }
+        }
+        {
+            // 偏移顶点
+            auto it = dirs.begin();
+            auto r = result.begin();
+            for (const auto s : polygon) {// 此循环要求顺序执行以使用迭代器 `it`，故不宜使用 ranges
+                auto a = *it;
+                auto b = *++it;
+                auto diff = a - b;
+                auto k = d / cross(a, b);// 若 a b 共线，此处产生无穷大异常值
+                *r++ = s + vector_t<>{
+                               static_cast<int16_t>(std::lroundf(diff.x * k)),
+                               static_cast<int16_t>(std::lroundf(diff.y * k)),
+                           };
+            }
+        }
+        return result;
+    }
+
+    // 多边形外框
+    auto min_max(polygon_t auto polygon) {
+        auto ptr = std::ranges::begin(polygon),
+             end = std::ranges::end(polygon);
+
+        auto min = *ptr, max = *ptr;
+        for (++ptr; ptr != end; ++ptr) {
+
+            if (ptr->x > max.x)
+                max.x = ptr->x;
+            else if (ptr->x < min.x)
+                min.x = ptr->x;
+
+            if (ptr->y > max.y)
+                max.y = ptr->y;
+            else if (ptr->y < min.y)
+                min.y = ptr->y;
+        }
+
+        return std::pair{min, max};
     }
 
     class transformation_t {

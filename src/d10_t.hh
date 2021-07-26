@@ -1,8 +1,8 @@
 ﻿#ifndef D10_T_HH
 #define D10_T_HH
 
+#include "geometry.hpp"
 #include "point_t.hpp"
-#include "pose2d_t.hpp"
 
 #include <vector>
 
@@ -21,9 +21,10 @@ namespace faselase {
 
         void update_filter(bool (*)(point_t));
 
+        // 从接收缓冲区解析
         size_t receive(void *, size_t);
 
-        // 拷贝压缩过的一帧
+        // 拷贝压缩编码的一帧
         size_t snapshot(void *, size_t) const;
 
         // 拷贝直角坐标的一帧

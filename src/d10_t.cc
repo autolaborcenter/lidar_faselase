@@ -53,9 +53,10 @@ namespace faselase {
             uint32_t bits;
             uint8_t bytes[4];
 
+            // 校验
             bool verify() const {
                 if ((bits & FRAME_BITS) != 0x80'00'00'00) return false;
-                return true;
+                // return true;
 
                 constexpr static uint8_t cbit[]{
                     0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
@@ -78,7 +79,8 @@ namespace faselase {
                 return ((cbit[bytes[1]] + cbit[bytes[2]] + cbit[bytes[3]]) & 0b111) == check_bits;
             }
 
-            point_t data() const {
+            // 重新编码
+            auto data() const {
                 auto len = frame_value_t{.len{.l0 = l0, .l1 = l1, .l2 = l2}}.value;
                 auto dir = frame_value_t{.dir{.d0 = d0, .d1 = d1}}.value;
                 // 如果 11 位无法保存则视为无效数据

@@ -1,7 +1,7 @@
 ﻿#ifndef PM1_OUTLINE_HPP
 #define PM1_OUTLINE_HPP
 
-#include "src/pose2d_t.hpp"
+#include "src/geometry.hpp"
 
 #include <array>
 

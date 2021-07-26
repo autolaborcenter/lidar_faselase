@@ -1,7 +1,7 @@
 ﻿#ifndef OBSTACLES_H
 #define OBSTACLES_H
 
-#include "src/pose2d_t.hpp"
+#include "src/geometry.hpp"
 
 #include <string>
 #include <vector>
