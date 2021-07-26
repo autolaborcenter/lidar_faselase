@@ -33,11 +33,10 @@ namespace autolabor::pm1 {
         for (auto i = 0; i < path.size(); ++i) {
             std::ranges::copy(pm1 | (transformation_t(path[i]) * (1 + i * .1f)).pipe(), outline.begin());
             auto [min, max] = min_max(outline);
-            for (const auto &group : obstacles)
-                for (auto o : group)
-                    if (min.x < o.x && o.x < max.x &&
-                        min.y < o.y && o.y < max.y &&
-                        check_inside(outline, o)) return i;
+            for (auto o : obstacles | std::views::join)
+                if (min.x < o.x && o.x < max.x &&
+                    min.y < o.y && o.y < max.y &&
+                    check_inside(outline, o)) return i;
         }
         return -1;
     }

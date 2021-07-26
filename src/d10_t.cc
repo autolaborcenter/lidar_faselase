@@ -150,7 +150,8 @@ namespace faselase {
                        size1 = _queue1.size();
 
             if (size >= size0) {
-                if (size >= size0 + size1) size = size1;
+                size -= size0;
+                if (size >= size1) size = size1;
                 std::copy_n(_queue0.begin(), size0, ptr);
                 std::copy_n(_queue1.begin(), size, ptr + size0);
                 return (size0 + size) * sizeof(point_t);

@@ -4,6 +4,7 @@
 
 #include <arpa/inet.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstring>
@@ -75,8 +76,8 @@ int main() {
         front.update_filter(front_filter);
         back.update_filter(back_filter);
 
-        launch_lidar("/dev/serial/by-path/platform-70090000.xusb-usb-0:2.3.3.3:1.0-port0", front);
-        launch_lidar("/dev/serial/by-path/platform-70090000.xusb-usb-0:2.3.3.4:1.0-port0", back);
+        launch_lidar("/dev/serial/by-path/platform-70090000.xusb-usb-0:2.4.3.3:1.0-port0", front);
+        launch_lidar("/dev/serial/by-path/platform-70090000.xusb-usb-0:2.4.3.4:1.0-port0", back);
 
         auto udp = socket(AF_INET, SOCK_DGRAM, 0);
         uint8_t buffer[1450];
@@ -86,9 +87,9 @@ int main() {
             auto address = remote.load();
             if (address.sin_addr.s_addr && address.sin_port) {
                 auto offset = 1;
-                auto m = front.snapshot(buffer + offset, sizeof(buffer) - offset);
+                auto m = front.snapshot(buffer + offset, sizeof(buffer) - offset - sizeof(uint16_t));
                 offset += m;
-                auto n = back.snapshot(buffer + offset, sizeof(buffer) - offset);
+                auto n = back.snapshot(buffer + offset, sizeof(buffer) - offset - sizeof(uint16_t));
                 offset += n;
                 *reinterpret_cast<uint16_t *>(buffer + offset) = m / 3;
                 offset += sizeof(uint16_t);
