@@ -31,7 +31,7 @@ namespace autolabor::pm1 {
         constexpr static auto &pm1 = autolabor::pm1::outline;
         std::vector<vector_t<>> outline(pm1.size());
         for (auto i = 0; i < path.size(); ++i) {
-            std::ranges::copy(pm1 | (transformation_t(path[i]) * (1 + i * .1f)).pipe(), outline.begin());
+            std::ranges::copy(pm1 | (transformation_t(path[i]) * (1 + i * .05f)).pipe(), outline.begin());
             auto [min, max] = min_max(outline);
             for (auto o : obstacles | std::views::join)
                 if (min.x < o.x && o.x < max.x &&

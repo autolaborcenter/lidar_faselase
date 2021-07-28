@@ -25,7 +25,7 @@ static bool front_filter(faselase::point_t p) {
 
 static bool back_filter(faselase::point_t p) {
     constexpr static auto QUARTER = 5760 / 4;
-    constexpr static auto DEG20 = 5760 * 25 / 360;
+    constexpr static auto DEG20 = 5760 * 30 / 360;
 
     auto dir = p.dir();
     return (DEG20 < dir && dir <= QUARTER) || ((5760 - QUARTER) < dir && dir <= (5760 - DEG20));
@@ -76,7 +76,7 @@ int main() {
         front.update_filter(front_filter);
         back.update_filter(back_filter);
 
-        launch_lidar("/dev/serial/by-path/platform-70090000.xusb-usb-0:2.4.3.3:1.0-port0", front);
+        launch_lidar("/dev/serial/by-path/platform-70090000.xusb-usb-0:2.4.1:1.0-port0", front);
         launch_lidar("/dev/serial/by-path/platform-70090000.xusb-usb-0:2.4.3.4:1.0-port0", back);
 
         auto udp = socket(AF_INET, SOCK_DGRAM, 0);
