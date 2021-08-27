@@ -55,16 +55,16 @@ int main() {
             auto l = p.len() * 10;
             auto d = p.dir() * 2 * M_PI / 5760;
             return v2d_t{
-                static_cast<int16_t>(std::cos(d) * l + 118),
-                static_cast<int16_t>(std::sin(d) * l),
+                static_cast<int16_t>(std::lround(std::cos(d) * l) + 118),
+                static_cast<int16_t>(std::lround(std::sin(d) * l)),
             };
         }),
         back([](faselase::point_t p) {
             auto l = p.len() * -10;
             auto d = p.dir() * 2 * M_PI / 5760;
             return v2d_t{
-                static_cast<int16_t>(std::cos(d) * l - 141),
-                static_cast<int16_t>(std::sin(d) * l),
+                static_cast<int16_t>(std::lround(std::cos(d) * l) - 141),
+                static_cast<int16_t>(std::lround(std::sin(d) * l)),
             };
         });
     std::atomic<sockaddr_in> remote({.sin_family = AF_INET});
